@@ -13,8 +13,10 @@ authRouter.post("/login", authController.login);
 authRouter.use(authenticateToken);
 
 authRouter.get("/users", requireRole("ADMIN"), authController.getAllUsers);
+authRouter.get("/users/:userId", authController.getUserById);
+authRouter.patch("/users/:userId", authController.update);
 authRouter.delete(
-  "/users/:id/delete",
+  "/users/:id",
   requireRole("ADMIN"),
   authController.deleteUser,
 );

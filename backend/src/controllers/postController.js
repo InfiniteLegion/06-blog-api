@@ -8,6 +8,7 @@ const getPosts = async (req, res) => {
       },
       include: {
         categories: true,
+        comments: true,
       },
     });
 
@@ -40,6 +41,7 @@ const getById = async (req, res) => {
             username: true,
           },
         },
+        comments: true,
       },
     });
 
@@ -129,6 +131,17 @@ const update = async (req, res) => {
     if (categories !== undefined && categories.length <= 0) {
       return res.status(400).json({
         message: "At least 1 category required",
+      });
+    }
+
+    if (
+      title === undefined &&
+      text === undefined &&
+      status === undefined &&
+      categories === undefined
+    ) {
+      return res.status(400).json({
+        message: "Nothing to update",
       });
     }
 

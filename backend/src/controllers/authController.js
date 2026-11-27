@@ -133,6 +133,131 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const getUserById = async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const role = req.user.role;
+    const currentUserId = req.user.userId;
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+      include: {
+        password: false,
+        posts: true,
+        comments: true,
+      },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json(existingUser);
+  } catch (error) {
+    return res.status(500).json({
+      message: `Internal server error. ${error.message}`,
+    });
+  }
+};
+
+const update = async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const currentUserId = req.user.userId;
+    const role = req.user.role;
+    const { username, email, password } = req.body;
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
+    if (
+      (username !== undefined &&
+        (typeof username !== "string" || !username.trim())) ||
+      (email !== undefined && (typeof email !== "string" || !email.trim())) ||
+      (password !== undefined &&
+        (typeof password !== "string" ||
+          !password.trim() ||
+          password.trim().length < 8))
+    ) {
+      return res.status(400).json({
+        message: "Invalid user data",
+      });
+    }
+
+    if (
+      username === undefined &&
+      email === undefined &&
+      password === undefined
+    ) {
+      return res.status(400).json({
+        message: "Nothing to update",
+      });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+      include: {
+        password: false,
+      },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const isUserOwner = currentUserId === existingUser.id;
+    const isAdmin = role === "ADMIN";
+
+    if (!(isUserOwner || isAdmin)) {
+      return res.status(403).json({
+        message: "Forbidden",
+      });
+    }
+
+    const hashedPassword =
+      password !== undefined && (await bcrypt.hash(password.trim(), 10));
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        ...(username !== undefined && { username: username.trim() }),
+        ...(email !== undefined && { email: email.trim() }),
+        ...(password !== undefined && { password: hashedPassword }),
+      },
+      include: {
+        password: false,
+      },
+    });
+
+    return res.status(200).json({
+      message: "User updated",
+      updatedUser,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: `Internal server error. ${error.message}`,
+    });
+  }
+};
+
 const deleteUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -171,4 +296,11 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getAllUsers, deleteUser };
+module.exports = {
+  register,
+  login,
+  getAllUsers,
+  getUserById,
+  update,
+  deleteUser,
+};
